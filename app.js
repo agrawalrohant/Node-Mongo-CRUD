@@ -53,8 +53,9 @@ const userModel = mongoose.model("User", userSchema);
 app.get("/api/allUsers", getAllUsersHandler);
 app.get("/api/user/:id", getUserByIDHandler);
 app.post("/api/user", createUserHandler);
-app.put("/api/user", updateUserHandler);
-app.patch("/api/user", updateUserPartialHandler);
+app.put("/api/user/:id", updateUserHandler);
+app.patch("/api/user/:id", updateUserPartialHandler);
+app.delete("/api/user/:id", deleteUserByIDHandler);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}.`);
@@ -92,7 +93,7 @@ async function getAllUsersHandler(req, res) {
 async function getUserByIDHandler(req, res) {
   try {
     const { id } = req.params;
-    console.log("userId", id);
+    console.log("getting userId", id);
     const user = await userModel.findById(id);
     if (user) {
       res.json({
@@ -139,8 +140,22 @@ async function createUserHandler(req, res) {
  * @param {*} req
  * @param {*} res
  */
-function updateUserHandler(req, res) {
+async function updateUserHandler(req, res) {
   try {
+    const { id } = req.params;
+    console.log("updating userId", id);
+    const updatedUser = req.body;
+    const isEmpty = Object.keys(updatedUser).length === 0;
+    if (isEmpty) {
+      throw new Error("Body cannot be empty");
+    }
+    await userModel.findOneAndReplace({ _id: id }, updatedUser, {
+      runValidators: true,
+    });
+    res.status(200).json({
+      message: "User Updated Successfully",
+      date: updatedUser,
+    });
   } catch (error) {
     res.status(500).json({
       error: error.message,
@@ -153,8 +168,47 @@ function updateUserHandler(req, res) {
  * @param {*} req
  * @param {*} res
  */
-function updateUserPartialHandler(req, res) {
+async function updateUserPartialHandler(req, res) {
   try {
+    const { id } = req.params;
+    console.log("updating userId", id);
+    const updatedUser = req.body;
+    const isEmpty = Object.keys(updatedUser).length === 0;
+    if (isEmpty) {
+      throw new Error("Body cannot be empty");
+    }
+    await userModel.findByIdAndUpdate(id, updatedUser, {
+      runValidators: true,
+    });
+    res.status(200).json({
+      message: "User Updated Successfully",
+      date: updatedUser,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * Method to delete a user
+ * @param {*} req
+ * @param {*} res
+ */
+async function deleteUserByIDHandler(req, res) {
+  try {
+    const { id } = req.params;
+    console.log("deleting userId", id);
+    const user = await userModel.deleteOne({ _id: id });
+    if (user) {
+      res.json({
+        status: 200,
+        message: "User Deleted Successfully",
+      });
+    } else {
+      throw new Error("User not found");
+    }
   } catch (error) {
     res.status(500).json({
       error: error.message,
