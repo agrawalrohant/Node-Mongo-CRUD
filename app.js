@@ -8,19 +8,75 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 app.use(express.json());
 
+/** Data base connection Start*/
+mongoose
+  .connect(process.env.DB_URL)
+  .then((result) => {
+    //console.log(result);
+    console.log("DB Connected");
+  })
+  .catch((err) => {
+    console.log(err);
+  });
+/** Data base connection Ends*/
+
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 8,
+  },
+  confirmPassword: {
+    type: String,
+    required: true,
+    minlength: 8,
+    validate: {
+      validator: function () {
+        return this.password === this.confirmPassword;
+      },
+      message: "Password and confirm password should be the same",
+    },
+  },
+});
+
+const userModel = mongoose.model("User", userSchema);
+
 app.get("/api/allUsers", getAllUsersHandler);
 app.get("/api/user/:id", getUserByIDHandler);
 app.post("/api/user", createUserHandler);
 app.put("/api/user", updateUserHandler);
 app.patch("/api/user", updateUserPartialHandler);
 
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}.`);
+});
+
 /**
  * Method to get the All Users
  * @param {*} req
  * @param {*} res
  */
-function getAllUsersHandler(req, res) {
+async function getAllUsersHandler(req, res) {
   try {
+    const allUser = await userModel.find();
+    if (allUser.length === 0) {
+      throw new Error("No user found");
+    } else {
+      res.json({
+        status: 200,
+        message: "Data found",
+        data: allUser,
+      });
+    }
   } catch (error) {
     res.status(500).json({
       error: error.message,
@@ -33,8 +89,20 @@ function getAllUsersHandler(req, res) {
  * @param {*} req
  * @param {*} res
  */
-function getUserByIDHandler(req, res) {
+async function getUserByIDHandler(req, res) {
   try {
+    const { id } = req.params;
+    console.log("userId", id);
+    const user = await userModel.findById(id);
+    if (user) {
+      res.json({
+        status: 200,
+        message: "User found",
+        data: user,
+      });
+    } else {
+      throw new Error("User not found");
+    }
   } catch (error) {
     res.status(500).json({
       error: error.message,
@@ -47,8 +115,18 @@ function getUserByIDHandler(req, res) {
  * @param {*} req
  * @param {*} res
  */
-function createUserHandler(req, res) {
+async function createUserHandler(req, res) {
   try {
+    const newUser = req.body;
+    const isEmpty = Object.keys(newUser).length === 0;
+    if (isEmpty) {
+      throw new Error("Body cannot be empty");
+    }
+    await userModel.create(newUser);
+    res.status(201).json({
+      message: "User Created Successfully",
+      date: newUser,
+    });
   } catch (error) {
     res.status(500).json({
       error: error.message,
